@@ -1,0 +1,58 @@
+`timescale 1ns/1ps
+
+module tb_topModule();
+    reg clk, rst;
+    integer i;
+
+    // Instantiate top
+    SingleCycleMIPS uut (
+        .clk(clk),
+        .rst(rst)
+    );
+
+    // Clock gen
+    initial begin
+        clk = 0;
+        forever #5 clk = ~clk; // 10ns period
+    end
+
+    // Initialize
+    initial begin
+        rst = 1;
+        #15 rst = 0;
+    end
+
+    // Preload instruction memory
+    initial begin
+        // Clear
+        for (i=0; i<256; i=i+1)
+            uut.IMem.mem[i] = 32'b0;
+
+        // Program
+        uut.IMem.mem[0] = 32'h04080005; // addi $t0,$zero,5
+        uut.IMem.mem[1] = 32'h04090003; // addi $t1,$zero,3
+        uut.IMem.mem[2] = 32'h01095020; // add $t2,$t0,$t1
+        uut.IMem.mem[3] = 32'hAC0A0000; // sw $t2,0($zero)
+        uut.IMem.mem[4] = 32'h8C0B0000; // lw $t3,0($zero)
+        uut.IMem.mem[5] = 32'h11280002; // beq $t1,$t0,+2
+        uut.IMem.mem[6] = 32'h014A5820; // add $t3,$t2,$t2
+        uut.IMem.mem[7] = 32'h08000009; // j to instr 9
+        uut.IMem.mem[8] = 32'h0C0B0001; // subi $t3,$t3,1
+        uut.IMem.mem[9] = 32'h00000000; // nop
+    end
+
+    // Monitor key signals
+    initial begin
+        $monitor("Time=%0t | PC=%h | Instr=%h | ALU=%h | WD=%h",
+                 $time,
+                 uut.pc_curr,
+                 uut.instr,
+                 uut.alu_result,
+                 uut.wd);
+    end
+
+    // Run for some cycles
+    initial begin
+        #300 $finish;
+    end
+endmodule
